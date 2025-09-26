@@ -38,7 +38,8 @@
     <!-- HOME -->
     <section id="home" class="card">
       <h1>Fitness Timer</h1>
-      <p class="muted">Pick a mode. Get After It. Disciplene Equals Freedom. Install on iPhone: Share → Add to Home Screen.</p>
+      <p class="muted">Pick a mode. Get After It. Disciplene Equals Freedom.</p>
+      <p class="muted">Install on iPhone: Share → Add to Home Screen.</p>
       <div class="grid grid-3">
         <button id="go-emom">EMOM</button>
         <button id="go-tabata">Tabata</button>
@@ -108,9 +109,9 @@
       osc.stop(t0 + ms/1000 + 0.02);
     }
     const tone = {
-      hi: () => beep({ freq: 880, type:'square', ms: 240, gain:0.2 }),
-      lo: () => beep({ freq: 440, type:'triangle', ms: 280, gain:0.2 }),
-      tick: () => beep({ freq: 660, type:'sine', ms: 120, gain:0.2 })
+      hi: () => beep({ freq: 880, type:'square', ms: 350, gain:0.25 }),
+      lo: () => beep({ freq: 440, type:'triangle', ms: 350, gain:0.25 }),
+      tick: () => beep({ freq: 660, type:'sine', ms: 120, gain:0.25 })
     };
 
     // ------------- DOM refs -------------
