@@ -20,17 +20,20 @@
     h1 { margin: 0 0 12px; }
     h2 { margin: 0 0 6px; font-size: 18px; opacity:.8 }
     .grid { display: grid; gap: 12px; }
+    .grid-4 { grid-template-columns: repeat(4, 1fr); }
     .grid-3 { grid-template-columns: repeat(3, 1fr); }
     button { padding: 12px 14px; border-radius: 10px; border: 1px solid #ddd; background:#fafafa; cursor:pointer; }
     button:active { transform: translateY(1px); }
     .row { display:flex; gap:8px; flex-wrap: wrap; align-items:center; }
     input[type=number]{ width: 92px; padding: 8px; }
     .muted { color:#666; font-size: 14px; margin-top: 10px; }
-    .big { font-size: 64px; font-weight: 800; line-height:1; margin: 8px 0 14px; }
+    .big { font-weight: 800; line-height:1; margin: 8px 0 14px;
+           font-size: clamp(72px, 12vw, 140px); /* HUGE on phones, scales up */ }
     .phase { font-size: 18px; opacity:.85; margin: 2px 0 10px }
     .run { color:#0b7; } .walk{ color:#06c; } .work{ color:#c30; } .rest{ color:#09c; }
     .bar { height: 8px; background: linear-gradient(90deg,#ccc 0 var(--pct,0%), transparent 0); border-radius: 6px; }
     .hidden { display:none; }
+    .water-big { font-size: clamp(40px, 8vw, 72px); font-weight:800; margin: 6px 0 10px; }
   </style>
 </head>
 <body>
@@ -38,12 +41,12 @@
     <!-- HOME -->
     <section id="home" class="card">
       <h1>Fitness Timer</h1>
-      <p class="muted">Pick a mode. Get After It. Disciplene Equals Freedom.</p>
-      <p class="muted">Install on iPhone: Share → Add to Home Screen.</p>
-      <div class="grid grid-3">
+      <p class="muted">Pick a mode. Install on iPhone: Share → Add to Home Screen.</p>
+      <div class="grid grid-4">
         <button id="go-emom">EMOM</button>
         <button id="go-tabata">Tabata</button>
         <button id="go-60120">60:120</button>
+        <button id="go-water">Water</button>
       </div>
     </section>
 
@@ -81,10 +84,27 @@
 
       <p id="sub" class="muted"></p>
     </section>
+
+    <!-- WATER TRACKER -->
+    <section id="water" class="card hidden">
+      <div class="row" style="justify-content:space-between">
+        <h1>Water</h1>
+        <button id="back2">Back</button>
+      </div>
+      <p class="muted">Daily total resets automatically at midnight.</p>
+      <div id="waterTotal" class="water-big">0 ml</div>
+      <div class="row">
+        <button data-ml="100">+100 ml</button>
+        <button data-ml="250">+250 ml</button>
+        <button data-ml="500">+500 ml</button>
+        <button id="waterUndo">Undo</button>
+      </div>
+      <div class="muted" id="waterDate"></div>
+    </section>
   </div>
 
   <script>
-    // ------------- AUDIO (Web Audio) -------------
+    /* ============== AUDIO (Web Audio) ============== */
     let audioCtx;
     function ensureAudio() {
       if (!audioCtx) {
@@ -93,9 +113,11 @@
       }
       if (audioCtx.state === 'suspended') audioCtx.resume();
     }
-    function beep({ freq=880, ms=220, type='sine', gain=0.2 } = {}) {
+
+    // Core beep — tweak defaults as you like
+    function beep({ freq=880, ms=220, type='sine', gain=0.14, when=0 } = {}) {
       if (!audioCtx) return;
-      const t0 = audioCtx.currentTime;
+      const t0 = (audioCtx.currentTime + (when/1000));
       const osc = audioCtx.createOscillator();
       const g = audioCtx.createGain();
       osc.type = type;
@@ -108,15 +130,28 @@
       osc.start(t0);
       osc.stop(t0 + ms/1000 + 0.02);
     }
+
+    // Simple tones for phase starts
     const tone = {
-      hi: () => beep({ freq: 880, type:'square', ms: 350, gain:0.25 }),
-      lo: () => beep({ freq: 440, type:'triangle', ms: 350, gain:0.25 }),
-      tick: () => beep({ freq: 660, type:'sine', ms: 120, gain:0.25 })
+      hi: () => beep({ freq: 900, type:'square', ms: 260, gain:0.18 }),
+      lo: () => beep({ freq: 440, type:'triangle', ms: 300, gain:0.20 }),
     };
 
-    // ------------- DOM refs -------------
+    // *** DISTINCT RUN→WALK CUE ***
+    // Four rapid, louder tones; tweak here only.
+    function cueRunToWalk() {
+      ensureAudio();
+      const baseMs = 90;           // spacing between pips
+      const dur = 130;             // each pip length
+      const g = 0.22;              // loudness
+      [0,1,2,3].forEach((k) => {
+        beep({ freq: 1000, ms: dur, type:'square', gain: g, when: k*baseMs });
+      });
+    }
+
+    /* ============== DOM refs & view helpers ============== */
     const $ = id => document.getElementById(id);
-    const views = { home: $('home'), timer: $('timer') };
+    const views = { home: $('home'), timer: $('timer'), water: $('water') };
     const titleEl = $('title'), phaseEl = $('phase'), timeEl = $('time'), barEl = $('bar'), subEl = $('sub');
     const startBtn = $('start'), stopBtn = $('stop'), resetBtn = $('reset');
 
@@ -130,34 +165,24 @@
       tabataRounds: $('tabata-rounds')
     };
 
-    $('go-emom').onclick  = () => loadMode('emom');
+    $('go-emom').onclick   = () => loadMode('emom');
     $('go-tabata').onclick = () => loadMode('tabata');
-    $('go-60120').onclick  = () => loadMode('x60120'); // id can't start w/ number
-    $('back').onclick = () => { stop(); switchView('home'); };
+    $('go-60120').onclick  = () => loadMode('x60120');
+    $('go-water').onclick  = () => switchView('water');
+    $('back').onclick  = () => { stop(); switchView('home'); };
+    $('back2').onclick = () => { switchView('home'); };
 
     startBtn.onclick = () => start();
     stopBtn.onclick  = () => stop();
     resetBtn.onclick = () => reset();
 
-    // ------------- State -------------
-    let mode = null;
-    let timer = null;
-    let phaseIndex = 0; // which phase within mode
-    let left = 0;       // seconds remaining in current phase
-    let totalPhase = 0; // total seconds of current phase (for progress bar)
-    let roundsLeft = 0; // Tabata rounds
-    let phases = [];    // populated per mode
-
     function switchView(name){
-      views.home.classList.toggle('hidden', name !== 'home');
-      views.timer.classList.toggle('hidden', name !== 'timer');
+      for (const k in views) views[k].classList.toggle('hidden', k !== name);
     }
+    function hideAllControls(){ ctrl.emom.classList.add('hidden'); ctrl.tabata.classList.add('hidden'); ctrl.x60120.classList.add('hidden'); }
 
-    function hideAllControls(){
-      ctrl.emom.classList.add('hidden');
-      ctrl.tabata.classList.add('hidden');
-      ctrl.x60120.classList.add('hidden');
-    }
+    /* ============== Timer state ============== */
+    let mode = null, timer = null, phaseIndex = 0, left = 0, totalPhase = 0, roundsLeft = 0, phases = [];
 
     function loadMode(m){
       stop();
@@ -215,12 +240,15 @@
     }
 
     function nextPhase(){
+      // Special cue: end of RUN -> start of WALK
+      if (mode === 'x60120' && phases[phaseIndex].name === 'RUN') {
+        cueRunToWalk();
+      }
       if (mode === 'tabata' && phaseIndex === 1) {
-        // completed REST -> decrement rounds, stop if 0
         roundsLeft -= 1;
         if (roundsLeft <= 0) { stop(); phaseEl.textContent = 'DONE'; subEl.textContent = 'Completed!'; return; }
       }
-      setPhase(phaseIndex + 1);
+      setPhase(phaseIndex + 1);  // plays the standard phase-start tone
     }
 
     function tick(){
@@ -229,48 +257,24 @@
       timeEl.textContent = left;
       const pct = Math.max(0, Math.min(100, Math.round((1 - left/totalPhase)*100)));
       barEl.style.setProperty('--pct', pct + '%');
-      // Optional quiet tick each second for EMOM only:
-      // if (mode === 'emom') tone.tick();
     }
 
     function start(){
       ensureAudio();
       if (timer) return;
-      // refresh numbers in case user edited inputs before starting
       if (mode === 'emom') {
         const s = Math.max(5, parseInt(ctrl.emomSeconds.value||'60',10));
-        phases[0].seconds = s;
-        setPhase(0); // play tone and reset
+        phases[0].seconds = s; setPhase(0);
       }
       if (mode === 'tabata') {
         const w = Math.max(5, parseInt(ctrl.tabataWork.value||'20',10));
         const r = Math.max(5, parseInt(ctrl.tabataRest.value||'10',10));
         roundsLeft = Math.max(1, parseInt(ctrl.tabataRounds.value||'8',10));
-        phases[0].seconds = w; phases[1].seconds = r;
-        setPhase(0); // start at WORK again
+        phases[0].seconds = w; phases[1].seconds = r; setPhase(0);
       }
       timer = setInterval(tick, 1000);
       startBtn.disabled = true; stopBtn.disabled = false;
     }
-
-    function stop(){
-      clearInterval(timer); timer = null;
-      startBtn.disabled = false; stopBtn.disabled = true;
-    }
-
-    function reset(){
-      stop();
-      setPhase(0, true); // no tone on reset
-    }
-
-    // Initial view
-    switchView('home');
-
-    // Service worker
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./service-worker.js');
-    }
-  </script>
-</body>
-</html>
+    function stop(){ clearInterval(timer); timer = null; startBtn.disabled = false; stopBtn.disabled = true; }
+    function reset(){ st
 
