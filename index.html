@@ -86,23 +86,24 @@
       <p id="sub" class="muted"></p>
     </section>
 
-    <!-- WATER TRACKER -->
-    <section id="water" class="card hidden">
-      <div class="row" style="justify-content:space-between">
-        <h1>Water</h1>
-        <button id="back2">Back</button>
-      </div>
-      <p class="muted">Drink Water.</p>
-      <div id="waterTotal" class="water-big">0 oz</div>
-      <div class="row">
-        <button data-ml="12">+12 oz</button>
-        <button data-ml="16">+16 oz</button>
-        <button data-ml="20">+20 oz</button>
-        <button data-ml="24">+24 oz</button>
-        <button id="waterUndo">Undo</button>
-      </div>
-      <div class="muted" id="waterDate"></div>
-    </section>
+<!-- WATER TRACKER -->
+<section id="water" class="card hidden">
+  <div class="row" style="justify-content:space-between">
+    <h1>Water</h1>
+    <button id="back2">Back</button>
+  </div>
+  <p class="muted">Drink Water.</p>
+  <div id="waterTotal" class="water-big">0 oz</div>
+  <div class="row">
+    <button data-oz="12" type="button">+12 oz</button>
+    <button data-oz="16" type="button">+16 oz</button>
+    <button data-oz="20" type="button">+20 oz</button>
+    <button data-oz="24" type="button">+24 oz</button>
+    <button id="waterUndo" type="button">Undo</button>
+  </div>
+  <div class="muted" id="waterDate"></div>
+</section>
+
   </div>
 
   <script>
