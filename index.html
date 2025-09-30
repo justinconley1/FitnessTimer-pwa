@@ -41,7 +41,8 @@
     <!-- HOME -->
     <section id="home" class="card">
       <h1>Fitness Timer</h1>
-      <p class="muted">Pick a mode. Install on iPhone: Share → Add to Home Screen.</p>
+      <p class="muted">Pick a Mode and Get After It - Disciplene Equals Freedom.</p>
+      <p class="muted">Install on iPhone: Share → Add to Home Screen.</p>
       <div class="grid grid-4">
         <button id="go-emom">EMOM</button>
         <button id="go-tabata">Tabata</button>
@@ -91,12 +92,13 @@
         <h1>Water</h1>
         <button id="back2">Back</button>
       </div>
-      <p class="muted">Daily total resets automatically at midnight.</p>
+      <p class="muted">Drink Water.</p>
       <div id="waterTotal" class="water-big">0 ml</div>
       <div class="row">
-        <button data-ml="100">+100 ml</button>
-        <button data-ml="250">+250 ml</button>
-        <button data-ml="500">+500 ml</button>
+        <button data-ml="12">+12 oz</button>
+        <button data-ml="16">+16 oz</button>
+        <button data-ml="20">+20 oz</button>
+        <button data-ml="24">+24 oz</button>
         <button id="waterUndo">Undo</button>
       </div>
       <div class="muted" id="waterDate"></div>
@@ -276,5 +278,76 @@
       startBtn.disabled = true; stopBtn.disabled = false;
     }
     function stop(){ clearInterval(timer); timer = null; startBtn.disabled = false; stopBtn.disabled = true; }
-    function reset(){ st
+    function reset(){ stop(); setPhase(0, true); }
 
+    switchView('home');
+
+    /* ============== Water tracker ============== */
+    const waterTotalEl = $('waterTotal');
+    const waterDateEl  = $('waterDate');
+    const waterSection = $('water');
+
+    const WATER_KEY_TOTAL = 'water_total_oz';
+    const WATER_KEY_DATE  = 'water_date';
+
+    function todayStr(){ const d=new Date(); return d.toISOString().slice(0,10); } // YYYY-MM-DD
+
+    function loadWater(){
+      const savedDate = localStorage.getItem(WATER_KEY_DATE);
+      if (savedDate !== todayStr()) {
+        // reset if new day
+        localStorage.setItem(WATER_KEY_TOTAL, '0');
+        localStorage.setItem(WATER_KEY_DATE, todayStr());
+      } else if (savedDate === null) {
+        localStorage.setItem(WATER_KEY_DATE, todayStr());
+      }
+      renderWater();
+    }
+    function renderWater(){
+      const total = parseInt(localStorage.getItem(WATER_KEY_TOTAL) || '0', 10);
+      waterTotalEl.textContent = `${total} oz`;
+      waterDateEl.textContent  = `Date: ${localStorage.getItem(WATER_KEY_DATE) || todayStr()}`;
+    }
+    function addWater(ml){
+      const total = parseInt(localStorage.getItem(WATER_KEY_TOTAL) || '0', 10) + ml;
+      localStorage.setItem(WATER_KEY_TOTAL', String(total)); // store
+      renderWater();
+      // optional: subtle audio tick to confirm
+      ensureAudio(); beep({ freq: 700, ms: 90, gain: 0.12 });
+    }
+    function undoWater(){
+      const total = Math.max(0, parseInt(localStorage.getItem(WATER_KEY_TOTAL) || '0', 10) - 100);
+      localStorage.setItem(WATER_KEY_TOTAL, String(total));
+      renderWater();
+    }
+
+    // wire buttons
+    waterSection.querySelectorAll('button[data-ml]').forEach(btn => {
+      btn.addEventListener('click', () => addWater(parseInt(btn.dataset.ml,10)));
+    });
+    $('waterUndo').onclick = () => undoWater();
+
+    // auto reset at midnight while open
+    setInterval(() => {
+      const savedDate = localStorage.getItem(WATER_KEY_DATE);
+      if (savedDate !== todayStr()) {
+        localStorage.setItem(WATER_KEY_TOTAL, '0');
+        localStorage.setItem(WATER_KEY_DATE, todayStr());
+        renderWater();
+      }
+    }, 60*1000); // check every minute
+
+    // when entering water view, ensure state is fresh
+    const origSwitch = switchView;
+    switchView = (name) => {
+      origSwitch(name);
+      if (name === 'water') loadWater();
+    };
+
+    /* ============== Service worker ============== */
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./service-worker.js');
+    }
+  </script>
+</body>
+</html>
