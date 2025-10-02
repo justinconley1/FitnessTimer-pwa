@@ -1,4 +1,4 @@
-const VERSION = "v1.0.4";
+const VERSION = "v1.0.5";
 const CACHE = `fitness-timer-${VERSION}`;
 
 // derive base path for project pages (e.g., /FitnessTimer-pwa/)
