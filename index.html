@@ -292,9 +292,12 @@ const WATER_KEY_TOTAL   = 'water_total_oz';
 const WATER_KEY_DATE    = 'water_date';
 const WATER_KEY_HISTORY = 'water_history';
 
-function todayStr(){ 
-  const d = new Date(); 
-  return d.toISOString().slice(0,10); 
+function todayStr() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`; // local YYYY-MM-DD
 }
 
 function initWaterStorage() {
